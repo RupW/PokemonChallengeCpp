@@ -1,5 +1,5 @@
 # PokemonChallenge
-A solution to the Softwire Support Team Pokémon Challenge in Scala:
+A solution to the Softwire Support Team Pokémon Challenge in C++ (more-or-less):
 
 > There are [quite a lot of Pokémon](http://pokeapi.co/api/v1/pokedex/) now. Let the set of all Pokémon be the Pokédex.   
 > We can take the power set of the Pokédex, giving us a set of all subsets of Pokémon, and then define a sort of order on the subsets:
@@ -16,4 +16,12 @@ A solution to the Softwire Support Team Pokémon Challenge in Scala:
 > 
 > So, the challenge is – can you find a minimal set S of all subsets of the Pokédex, such that all the letters of the alphabet appear in S?
 
-This currently gets the correct answer in ~10.5 seconds. I do have ideas to improve that - some left as comments in the code - but colleagues have got it [under a second](https://github.com/MatthewRichards/PokemonChallenge) by using bitmasks instead of strings and it might take a fair overhaul to beat that :-(
+This currently gets the correct answer in 26-28ms on my desktop here, which is the best runtime of solutions here so far I think. It is, however, a real mess:
+
+* I'm only using C++ for memory allocation; this is plain C really
+* In places where I really needed a lambda I've made global state and promoted the lambdas to global functions
+* There are virtually no comments, and the names need some thought too
+* The number '26' is everywhere, both as an array bound and as the number of letter
+* (and I never clean up allocated memory) 
+
+and so on. The latest version also crashes if I switch it into depth-first mode, which it really ought not :-( but I don't have time or inclination to debug that just now.
