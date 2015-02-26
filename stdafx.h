@@ -6,14 +6,15 @@
 #pragma once
 
 #include "targetver.h"
-
-#include <stdio.h>
 #include <tchar.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
+
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
 #include <string>
-#include <stdint.h>
+#include <cstdint>
+#include <vector>
 
 
 // TODO: reference additional headers your program requires here

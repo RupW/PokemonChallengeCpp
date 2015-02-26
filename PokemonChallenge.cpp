@@ -213,14 +213,14 @@ int _tmain(int argc, _TCHAR* argv[])
     // Start the clock!
     clock_t startTime = clock();
 
-    // Generate Pokemon data strucutres for each Pokemon we have.
+    // Generate Pokemon data structures for each Pokemon we have.
     // These contain the name, the length of its name and a bitmask representing the letters in
     // the name.
     int count = sizeof(pokemonNames) / sizeof(pokemonNames[0]);
-    Pokemon** pokemon = new Pokemon*[count];
+    std::vector<Pokemon> pokemon;
 
     for (int i = 0; i < count; ++i) {
-        pokemon[i] = new Pokemon(pokemonNames[i]);
+        pokemon.push_back(Pokemon(pokemonNames[i]));
     }
 
     // For each letter, build up a list of Pokemon that contain that letter.
@@ -230,8 +230,8 @@ int _tmain(int argc, _TCHAR* argv[])
     }
     for (int i = 0; i < count; ++i) {
         for (int j = 0; j < 26; ++j) {
-            if ((pokemon[i]->bits & (1 << j)) != 0) {
-                hasBit[j][hasBitCount[j]] = pokemon[i];
+            if ((pokemon[i].bits & (1 << j)) != 0) {
+                hasBit[j][hasBitCount[j]] = &(pokemon[i]);
                 ++hasBitCount[j];
             }
         }
