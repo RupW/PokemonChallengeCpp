@@ -24,4 +24,4 @@ This currently gets the correct answer in 26-28ms on my desktop here, which is t
 * The number '26' is everywhere, both as an array bound and as the number of letter
 * (and I never clean up allocated memory) 
 
-and so on. The latest version also crashes if I switch it into depth-first mode, which it really ought not :-( but I don't have time or inclination to debug that just now.
+and so on. It actually seems a few ms quicker in depth first mode (!) but fails to return the alternative solution :-( I don't have time or inclination to debug that just now.

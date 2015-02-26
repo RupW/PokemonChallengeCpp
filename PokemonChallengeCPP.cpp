@@ -129,16 +129,17 @@ int bestCount;
 int bestLength;
 int bestEquiv;
 int maxDepth;
-unsigned int allBits = (1 << 26) - 1;
+const unsigned int allBits = (1 << 26) - 1;
 
-void search(int depth, unsigned long bits, int currentLength, int firstLetter) {
+// The main recursive search function.
+void search(int depth, unsigned int bits, int currentLength, int firstLetter) {
 	for (int l = firstLetter; l < 26; ++l) {
 		int sl = sortedLetters[l];
-		unsigned long letterBit = 1 << sl;
+		unsigned int letterBit = 1 << sl;
 		if ((bits & letterBit) == 0) {
 			for (int p = 0; p < hasBitCount[sl]; ++p) {
 				Pokemon* pok = hasBit[sl][p];
-				unsigned long newBits = bits | pok->bits;
+				unsigned int newBits = bits | pok->bits;
 				if (newBits != bits) {
 					int newLength = currentLength + pok->length;
 					if (newBits == allBits) {
@@ -150,7 +151,7 @@ void search(int depth, unsigned long bits, int currentLength, int firstLetter) {
 							bestEquiv = 0;
 							memcpy(best, solution, 26 * sizeof(Pokemon*));
 						}
-						else if ((depth == bestDepth) && (newLength == bestLength)) {
+						else if ((depth == bestDepth) && (newLength == bestLength) && (bestEquiv < 10)) {
 							memcpy(equiv[bestEquiv], solution, 26 * sizeof(Pokemon*));
 							++bestEquiv;
 						}
@@ -179,11 +180,15 @@ void search(int depth, unsigned long bits, int currentLength, int firstLetter) {
 	}
 }
 
+// qsort comparator function for a list of integer indexes into the hasBitCount array; order for
+// lowest hasBitCount first.
 int compareBitCount(const void* p1, const void* p2) {
 	int n1 = *((const int*)p1);
 	int n2 = *((const int*)p2);
 	return hasBitCount[n1] - hasBitCount[n2];
 }
+
+// qsort comparator function for Pokemon structures; order so that the shortest names come first.
 int comparePokemonLengths(const void* p1, const void* p2) {
 	Pokemon* q1 = *((Pokemon**)p1);
 	Pokemon* q2 = *((Pokemon**)p2);
@@ -192,18 +197,19 @@ int comparePokemonLengths(const void* p1, const void* p2) {
 
 int _tmain(int argc, _TCHAR* argv[])
 {
+	// Start the clock!
 	clock_t startTime = clock();
 
+	// Generate Pokemon data strucutres for each Pokemon we have.
+	// These contain the name, the length of its name and a bitmask representing the letters in
+	// the name.
 	int count = sizeof(pokemonNames) / sizeof(pokemonNames[0]);
-
 	Pokemon* pokemon = new Pokemon[count];
 
-	unsigned int* bits = new unsigned int[count];
-	int* length = new int[count];
 	for (int i = 0; i < count; ++i) {
 		pokemon[i].name = pokemonNames[i];
 		pokemon[i].length = strlen(pokemonNames[i]);
-		unsigned long b = 0;
+		unsigned int b = 0;
 		const char* p = pokemonNames[i];
 		while (*p) {
 			char c = *p;
@@ -215,6 +221,7 @@ int _tmain(int argc, _TCHAR* argv[])
 		pokemon[i].bits = b;
 	}
 
+	// For each letter, build up a list of Pokemon that contain that letter.
 	for (int i = 0; i < 26; ++i) {
 		hasBit[i] = new Pokemon*[count];
 		sortedLetters[i] = i;
@@ -228,22 +235,32 @@ int _tmain(int argc, _TCHAR* argv[])
 		}
 	}
 
+	// Sort the Pokemon within each per-letter list so that the shortest names come first.
 	for (int i = 0; i < 26; ++i) {
 		qsort(&(hasBit[i][0]), hasBitCount[i], sizeof(Pokemon*), comparePokemonLengths);
 	}
+
+	// Sort the letters so that the letters with fewest Pokemon come first.
 	qsort(sortedLetters, 26, sizeof(int), compareBitCount);
 
+	// Breadth-first search by gradually increasing our maximum search depth until we find a
+	// solution. The depth number here is 0-based and inclusive; we set bestDepth out-of-bounds
+	// large so that the first real solution is considered better than it.
 	maxDepth = 0;
 	bestDepth = 26;
 	while (bestDepth > maxDepth) {
 		++maxDepth;
 		search(0, 0, 0, 0);
 	}
+
+	// Print the solution (assuming that there is one)
 	printf("%d %d : ", bestDepth + 1, bestLength);
 	for (int q = 0; q <= bestDepth; ++q) {
 		printf("%s ", best[q]->name);
 	}
 	printf("\n");
+
+	// Print any alternative solutions collected.
 	for (int e = 0; e < bestEquiv; ++e) {
 		printf("%d %d : ", bestDepth + 1, bestLength);
 		for (int q = 0; q <= bestDepth; ++q) {
@@ -251,6 +268,8 @@ int _tmain(int argc, _TCHAR* argv[])
 		}
 		printf("\n");
 	}
+
+	// Stop the clock!
 	clock_t endTime = clock();
 	double elapsedTime = (((double)1000) * (endTime - startTime)) / (double)CLOCKS_PER_SEC;
 	printf("Took %g ms\n", elapsedTime);
