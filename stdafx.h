@@ -12,6 +12,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <string>
+#include <stdint.h>
 
 
 // TODO: reference additional headers your program requires here

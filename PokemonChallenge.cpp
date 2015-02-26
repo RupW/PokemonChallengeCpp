@@ -108,12 +108,25 @@ const char* const pokemonNames[] = {
     "zekrom", "zigzagoon", "zoroark", "zorua", "zubat", "zweilous", "zygarde"
 };
 
-struct Pokemon {
-    Pokemon() : name(NULL), length(0), bits(0) {}
+class Pokemon {
 
-    const char* name;
-    int length;
-    unsigned int bits;
+public:
+    Pokemon(const char* pokemonName) : name(pokemonName), length(name.length()), bits(buildLetterBits(pokemonName)) {}
+
+    const std::string name;
+    const int length;
+    const uint32_t bits;
+
+private:
+    static uint32_t buildLetterBits(const char* pokemonName) {
+        uint32_t b = 0;
+        for(const char* p = pokemonName; *p != 0; ++p) {
+            if ((*p >= 'a') && (*p <= 'z')) {
+                b |= 1 << (*p - 'a');
+            }
+        }
+        return b;
+    }
 };
 
 //qq these ought not be global
@@ -129,17 +142,17 @@ int bestCount;
 int bestLength;
 int bestEquiv;
 int maxDepth;
-const unsigned int allBits = (1 << 26) - 1;
+const uint32_t allBits = (1 << 26) - 1;
 
 // The main recursive search function.
-void search(int depth, unsigned int bits, int currentLength, int firstLetter) {
+void search(int depth, uint32_t bits, int currentLength, int firstLetter) {
     for (int l = firstLetter; l < 26; ++l) {
         int sl = sortedLetters[l];
-        unsigned int letterBit = 1 << sl;
+        uint32_t letterBit = 1 << sl;
         if ((bits & letterBit) == 0) {
             for (int p = 0; p < hasBitCount[sl]; ++p) {
                 Pokemon* pok = hasBit[sl][p];
-                unsigned int newBits = bits | pok->bits;
+                uint32_t newBits = bits | pok->bits;
                 if (newBits != bits) {
                     int newLength = currentLength + pok->length;
                     if (newBits == allBits) {
@@ -204,21 +217,10 @@ int _tmain(int argc, _TCHAR* argv[])
     // These contain the name, the length of its name and a bitmask representing the letters in
     // the name.
     int count = sizeof(pokemonNames) / sizeof(pokemonNames[0]);
-    Pokemon* pokemon = new Pokemon[count];
+    Pokemon** pokemon = new Pokemon*[count];
 
     for (int i = 0; i < count; ++i) {
-        pokemon[i].name = pokemonNames[i];
-        pokemon[i].length = strlen(pokemonNames[i]);
-        unsigned int b = 0;
-        const char* p = pokemonNames[i];
-        while (*p) {
-            char c = *p;
-            if ((c >= 'a') && (c <= 'z')) {
-                b |= 1 << (c - 'a');
-            }
-            ++p;
-        }
-        pokemon[i].bits = b;
+        pokemon[i] = new Pokemon(pokemonNames[i]);
     }
 
     // For each letter, build up a list of Pokemon that contain that letter.
@@ -228,8 +230,8 @@ int _tmain(int argc, _TCHAR* argv[])
     }
     for (int i = 0; i < count; ++i) {
         for (int j = 0; j < 26; ++j) {
-            if ((pokemon[i].bits & (1 << j)) != 0) {
-                hasBit[j][hasBitCount[j]] = &(pokemon[i]);
+            if ((pokemon[i]->bits & (1 << j)) != 0) {
+                hasBit[j][hasBitCount[j]] = pokemon[i];
                 ++hasBitCount[j];
             }
         }
@@ -256,7 +258,7 @@ int _tmain(int argc, _TCHAR* argv[])
     // Print the solution (assuming that there is one)
     printf("%d %d : ", bestDepth + 1, bestLength);
     for (int q = 0; q <= bestDepth; ++q) {
-        printf("%s ", best[q]->name);
+        printf("%s ", best[q]->name.c_str());
     }
     printf("\n");
 
@@ -264,7 +266,7 @@ int _tmain(int argc, _TCHAR* argv[])
     for (int e = 0; e < bestEquiv; ++e) {
         printf("%d %d : ", bestDepth + 1, bestLength);
         for (int q = 0; q <= bestDepth; ++q) {
-            printf("%s ", equiv[e][q]->name);
+            printf("%s ", equiv[e][q]->name.c_str());
         }
         printf("\n");
     }
