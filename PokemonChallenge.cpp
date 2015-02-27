@@ -111,11 +111,20 @@ const char* const pokemonNames[] = {
 class Pokemon {
 
 public:
+    Pokemon() : name(), length(0), bits(0) {}
     Pokemon(const char* pokemonName) : name(pokemonName), length(name.length()), bits(buildLetterBits(pokemonName)) {}
 
-    const std::string name;
-    const int length;
-    const uint32_t bits;
+    // qq need accessors now :-(
+    std::string name;
+    int length;
+    uint32_t bits;
+
+    Pokemon& operator=(Pokemon const& other) {
+        name = other.name;
+        length = other.length;
+        bits = other.bits;
+        return *this;
+    }
 
 private:
     static uint32_t buildLetterBits(const char* pokemonName) {
@@ -127,54 +136,59 @@ private:
         }
         return b;
     }
+
+public:
+    static bool lengthOrdering(Pokemon const& a, Pokemon const& b) {
+        return (a.length < b.length)
+            || ((a.length == b.length) && (a.name < b.name));
+    }
 };
 
 //qq these ought not be global
-int sortedLetters[26];
-int hasBitCount[26];
-Pokemon** hasBit[26];
+std::vector<std::pair<uint32_t, std::vector<const Pokemon*>>> bitsAndPokemonLists;
+std::vector<const Pokemon*> solution;
+std::vector<const Pokemon*> best;
+std::vector<std::vector<const Pokemon*>> equiv;
 
-Pokemon* solution[26];
-Pokemon* best[26];
-Pokemon* equiv[10][26];
 int bestDepth;
 int bestCount;
 int bestLength;
-int bestEquiv;
 int maxDepth;
 const uint32_t allBits = (1 << 26) - 1;
 
 // The main recursive search function.
 void search(int depth, uint32_t bits, int currentLength, int firstLetter) {
     for (int l = firstLetter; l < 26; ++l) {
-        int sl = sortedLetters[l];
-        uint32_t letterBit = 1 << sl;
+        std::pair<uint32_t, std::vector<const Pokemon*>> const & sl = bitsAndPokemonLists[l];
+        uint32_t letterBit = sl.first;
         if ((bits & letterBit) == 0) {
-            for (int p = 0; p < hasBitCount[sl]; ++p) {
-                Pokemon* pok = hasBit[sl][p];
-                uint32_t newBits = bits | pok->bits;
+            std::vector<const Pokemon*> const& s = sl.second;
+            for(std::vector<const Pokemon*>::const_iterator it = s.begin();
+                it != s.end(); ++it) {
+                uint32_t newBits = bits | (*it)->bits;
                 if (newBits != bits) {
-                    int newLength = currentLength + pok->length;
+                    int newLength = currentLength + (*it)->length;
                     if (newBits == allBits) {
                         // solved!
-                        solution[depth] = pok;
                         if (((depth < bestDepth) || ((depth == bestDepth) && (newLength < bestLength)))) {
+                            solution.push_back(*it);
                             bestDepth = depth;
                             bestLength = newLength;
-                            bestEquiv = 0;
-                            memcpy(best, solution, 26 * sizeof(Pokemon*));
+                            equiv.clear();
+                            best = solution;
+                            solution.pop_back();
                         }
-                        else if ((depth == bestDepth) && (newLength == bestLength) && (bestEquiv < 10)) {
-                            memcpy(equiv[bestEquiv], solution, 26 * sizeof(Pokemon*));
-                            ++bestEquiv;
+                        else if ((depth == bestDepth) && (newLength == bestLength)) {
+                            solution.push_back(*it);
+                            equiv.push_back(solution);
+                            solution.pop_back();
                         }
-                        solution[depth] = NULL;
                     }
                     else if ((depth + 1) < maxDepth) {
                         if (((depth < bestDepth) || ((depth == bestDepth) && (newLength < bestLength)))) {
-                            solution[depth] = pok;
+                            solution.push_back(*it);
                             search(depth + 1, newBits, newLength, l + 1);
-                            solution[depth] = NULL;
+                            solution.pop_back();
                         }
                         else {
                             // not an improvement
@@ -193,19 +207,8 @@ void search(int depth, uint32_t bits, int currentLength, int firstLetter) {
     }
 }
 
-// qsort comparator function for a list of integer indexes into the hasBitCount array; order for
-// lowest hasBitCount first.
-int compareBitCount(const void* p1, const void* p2) {
-    int n1 = *((const int*)p1);
-    int n2 = *((const int*)p2);
-    return hasBitCount[n1] - hasBitCount[n2];
-}
-
-// qsort comparator function for Pokemon structures; order so that the shortest names come first.
-int comparePokemonLengths(const void* p1, const void* p2) {
-    Pokemon* q1 = *((Pokemon**)p1);
-    Pokemon* q2 = *((Pokemon**)p2);
-    return q1->length - q2->length;
+static bool orderBySecondVectorLength(std::pair<uint32_t, std::vector<const Pokemon*>> const& left, std::pair<uint32_t, std::vector<const Pokemon*>> const& right) {
+    return left.second.size() < right.second.size();
 }
 
 int _tmain(int argc, _TCHAR* argv[])
@@ -218,54 +221,52 @@ int _tmain(int argc, _TCHAR* argv[])
     // the name.
     int count = sizeof(pokemonNames) / sizeof(pokemonNames[0]);
     std::vector<Pokemon> pokemon;
-
     for (int i = 0; i < count; ++i) {
         pokemon.push_back(Pokemon(pokemonNames[i]));
     }
 
+    // Sort this vector so that the shortest names come first
+    std::sort(pokemon.begin(), pokemon.end(), Pokemon::lengthOrdering);
+
     // For each letter, build up a list of Pokemon that contain that letter.
-    for (int i = 0; i < 26; ++i) {
-        hasBit[i] = new Pokemon*[count];
-        sortedLetters[i] = i;
-    }
-    for (int i = 0; i < count; ++i) {
-        for (int j = 0; j < 26; ++j) {
-            if ((pokemon[i].bits & (1 << j)) != 0) {
-                hasBit[j][hasBitCount[j]] = &(pokemon[i]);
-                ++hasBitCount[j];
+    // These will remain in shortest-first order.
+    std::vector<std::vector<const Pokemon*>> pokemonByLetter(26);
+    for(std::vector<Pokemon>::const_iterator it = pokemon.begin(); it != pokemon.end(); ++it) {
+        for(int i = 0; i < 26; ++i) {
+            if ((it->bits & (1 << i)) != 0) {
+                pokemonByLetter[i].push_back(&(*it));
             }
         }
     }
 
-    // Sort the Pokemon within each per-letter list so that the shortest names come first.
+    // Sort pairs of letter bit and lists of Pokemon with that letter/bit so that the letters with
+    // the fewest Pokemon come first
     for (int i = 0; i < 26; ++i) {
-        qsort(&(hasBit[i][0]), hasBitCount[i], sizeof(Pokemon*), comparePokemonLengths);
+        bitsAndPokemonLists.push_back(std::make_pair(((uint32_t)1) << i, pokemonByLetter[i]));
     }
-
-    // Sort the letters so that the letters with fewest Pokemon come first.
-    qsort(sortedLetters, 26, sizeof(int), compareBitCount);
+    std::sort(bitsAndPokemonLists.begin(), bitsAndPokemonLists.end(), orderBySecondVectorLength);
 
     // Breadth-first search by gradually increasing our maximum search depth until we find a
     // solution. The depth number here is 0-based and inclusive; we set bestDepth out-of-bounds
     // large so that the first real solution is considered better than it.
     maxDepth = 0;
     bestDepth = 26;
-    while (bestDepth > maxDepth) {
+    while (best.empty()) {
         ++maxDepth;
         search(0, 0, 0, 0);
     }
 
     // Print the solution (assuming that there is one)
-    printf("%d %d : ", bestDepth + 1, bestLength);
-    for (int q = 0; q <= bestDepth; ++q) {
+    printf("%d %d : ", best.size(), bestLength);
+    for (int q = 0; q < best.size(); ++q) {
         printf("%s ", best[q]->name.c_str());
     }
     printf("\n");
 
     // Print any alternative solutions collected.
-    for (int e = 0; e < bestEquiv; ++e) {
-        printf("%d %d : ", bestDepth + 1, bestLength);
-        for (int q = 0; q <= bestDepth; ++q) {
+    for (int e = 0; e < equiv.size(); ++e) {
+        printf("%d %d : ", equiv[e].size(), bestLength);
+        for (int q = 0; q < equiv[e].size(); ++q) {
             printf("%s ", equiv[e][q]->name.c_str());
         }
         printf("\n");
